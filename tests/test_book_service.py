@@ -1,3 +1,5 @@
+import pytest
+
 from app.database.models import Author
 from app.services.book_service import BookService
 
@@ -159,3 +161,109 @@ def test_delete_book(db_session):
     service.delete_book(book)
 
     assert service.get_book_by_id(book_id) is None
+
+def test_create_book_rejects_blank_title(db_session):
+    author = create_author(db_session)
+    service = BookService(db_session)
+
+    with pytest.raises(ValueError, match="Title cannot be blank"):
+        service.create_book(
+            title="",
+            isbn="9780547928227",
+            publication_year=1937,
+            genre="Fantasy",
+            author_id=author.id,
+        )
+
+def test_create_book_rejects_blank_isbn(db_session):
+    author = create_author(db_session)
+    service = BookService(db_session)
+
+    with pytest.raises(ValueError, match="ISBN cannot be blank"):
+        service.create_book(
+            title="The Hobbit",
+            isbn="",
+            publication_year=1937,
+            genre="Fantasy",
+            author_id=author.id,
+        )
+
+def test_create_book_rejects_duplicate_isbn(db_session):
+    author = create_author(db_session)
+    service = BookService(db_session)
+
+    service.create_book(
+        title="The Hobbit",
+        isbn="9780547928227",
+        publication_year=1937,
+        genre="Fantasy",
+        author_id=author.id,
+    )
+
+    with pytest.raises(ValueError, match="A book with this ISBN already exists"):
+        service.create_book(
+            title="Another Book",
+            isbn="9780547928227",
+            publication_year=2000,
+            genre="Fantasy",
+            author_id=author.id,
+        )
+
+def test_update_book_rejects_duplicate_isbn(db_session):
+    author = create_author(db_session)
+    service = BookService(db_session)
+
+    book_one = service.create_book(
+        title="The Hobbit",
+        isbn="9780547928227",
+        publication_year=1937,
+        genre="Fantasy",
+        author_id=author.id,
+    )
+
+    book_two = service.create_book(
+        title="The Lord of the Rings",
+        isbn="9780618640157",
+        publication_year=1954,
+        genre="Fantasy",
+        author_id=author.id,
+    )
+
+    book_two.isbn = book_one.isbn
+
+    with pytest.raises(ValueError, match="A book with this ISBN already exists"):
+        service.update_book(book_two)
+
+def test_update_book_rejects_blank_title(db_session):
+    author = create_author(db_session)
+    service = BookService(db_session)
+
+    book = service.create_book(
+        title="The Hobbit",
+        isbn="9780547928227",
+        publication_year=1937,
+        genre="Fantasy",
+        author_id=author.id,
+    )
+
+    book.title = "   "
+
+    with pytest.raises(ValueError, match="Title cannot be blank"):
+        service.update_book(book)
+
+def test_update_book_rejects_blank_isbn(db_session):
+    author = create_author(db_session)
+    service = BookService(db_session)
+
+    book = service.create_book(
+        title="The Hobbit",
+        isbn="9780547928227",
+        publication_year=1937,
+        genre="Fantasy",
+        author_id=author.id,
+    )
+
+    book.isbn = "   "
+
+    with pytest.raises(ValueError, match="ISBN cannot be blank"):
+        service.update_book(book)

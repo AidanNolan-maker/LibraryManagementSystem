@@ -27,6 +27,18 @@ class BookService:
             genre: str | None,
             author_id: int, 
         ) -> Book:
+            title = title.strip()
+            isbn = isbn.strip()
+            
+            if not title:
+                raise ValueError("Title cannot be blank")
+
+            if not isbn:
+                raise ValueError("ISBN cannot be blank")
+
+            if self.repository.get_by_isbn(isbn) is not None:
+                raise ValueError("A book with this ISBN already exists")
+            
             book = Book(
                 title=title,
                 isbn=isbn,
@@ -38,6 +50,21 @@ class BookService:
             return self.repository.create(book)
 
     def update_book(self, book: Book) -> Book:
+        book.title = book.title.strip()
+        book.isbn = book.isbn.strip()
+
+        if not book.title:
+            raise ValueError("Title cannot be blank")
+
+        if not book.isbn:
+            raise ValueError("ISBN cannot be blank")
+
+        with self.repository.db.no_autoflush:
+            existing_book = self.repository.get_by_isbn(book.isbn)
+
+        if existing_book is not None and existing_book.id != book.id:
+            raise ValueError("A book with this ISBN already exists")
+
         return self.repository.update(book)
 
     def delete_book(self, book: Book) -> None:
