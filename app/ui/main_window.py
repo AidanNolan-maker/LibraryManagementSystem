@@ -12,6 +12,9 @@ from PySide6.QtWidgets import (
 
 from app.ui.styles import APPLICATION_STYLE
 
+from app.ui.pages.books_page import BooksPage
+from app.ui.pages.authors_page import AuthorsPage
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -112,16 +115,21 @@ class MainWindow(QMainWindow):
         return button
 
     def create_pages(self):
-        pages = [
-            "Dashboard",
-            "Books",
-            "Authors",
-            "Members",
-            "Loans",
-            "Reports",
-        ]
+        dashboard_page = QWidget()
+        dashboard_layout = QVBoxLayout(dashboard_page)
 
-        for page_name in pages:
+        dashboard_title = QLabel("Dashboard")
+        dashboard_title.setObjectName("page_title")
+
+        dashboard_layout.addWidget(dashboard_title)
+        dashboard_layout.addStretch()
+
+        self.pages.addWidget(dashboard_page)
+
+        self.pages.addWidget(BooksPage())
+        self.pages.addWidget(AuthorsPage())
+
+        for page_name in ["Members", "Loans", "Reports"]:
             page = QWidget()
 
             layout = QVBoxLayout(page)
