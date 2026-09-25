@@ -44,6 +44,9 @@ class BooksPage(QWidget):
             self.open_edit_book_dialog
         )
 
+        self.archive_book_button = QPushButton("Archive Book")
+        self.archive_book_button.clicked.connect(self.archive_selected_book)
+
         self.book_table = QTableWidget()
         self.book_table.setColumnCount(5)
         self.book_table.setHorizontalHeaderLabels(
@@ -78,6 +81,7 @@ class BooksPage(QWidget):
         layout.addWidget(self.search_input)
         layout.addWidget(self.add_book_button)
         layout.addWidget(self.edit_book_button)
+        layout.addWidget(self.archive_book_button)
         layout.addWidget(self.book_table)
 
     def load_books(self):
@@ -250,6 +254,66 @@ class BooksPage(QWidget):
                 QMessageBox.warning(
                     self,
                     "Unable to Edit Book",
+                    str(error),
+                )
+                return
+
+            self.load_books()
+
+        finally:
+            db.close()
+
+    def archive_selected_book(self):
+        selected_rows = self.book_table.selectionModel().selectedRows()
+
+        if not selected_rows:
+            QMessageBox.information(
+                self,
+                "No Book Selected",
+                "Please select a book to archive."
+            )
+            return
+
+        row = selected_rows[0].row()
+        book_id_item = self.book_table.item(row, 0)
+
+        if book_id_item is None:
+            return
+
+        book_id = int(book_id_item.text())
+
+        db = SessionLocal()
+
+        try:
+            book_service = BookService(db)
+            book = book_service.get_book_by_id(book_id)
+
+            if book is None:
+                QMessageBox.warning(
+                    self,
+                    "Book Not Found",
+                    "The selected book could not be found.",
+                )
+                return
+
+            confirmation = QMessageBox.question(
+                self,
+                "Archive Book",
+                f'Are you sure you want to archive "{book.title}"?',
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+
+            if confirmation != QMessageBox.StandardButton.Yes:
+                return
+
+            try:
+                book_service.archive_book(book)
+            except ValueError as error:
+                QMessageBox.warning(
+                    self,
+                    "Unable to Archive Book",
                     str(error),
                 )
                 return
