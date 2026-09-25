@@ -8,7 +8,11 @@ class BookRepository:
         self.db = db
 
     def get_all(self) -> list[Book]:
-        statement = select(Book).order_by(Book.title)
+        statement = (
+            select(Book)
+            .where(Book.is_archived.is_(False))
+            .order_by(Book.title)
+        )
 
         return list(self.db.scalars(statement).all())
 
@@ -23,7 +27,10 @@ class BookRepository:
     def search(self, search_term: str) -> list[Book]:
         statement = (
             select(Book)
-            .where(Book.title.ilike(f"%{search_term}%"))
+            .where(
+                Book.is_archived.is_(False),
+                Book.title.ilike(f"%{search_term}%"),
+            )
             .order_by(Book.title)
         )
 

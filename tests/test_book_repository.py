@@ -138,3 +138,90 @@ def test_delete_book(db_session):
     retrieved_book = repository.get_by_id(book_id)
 
     assert retrieved_book is None
+
+def test_get_all_excludes_archived_books(db_session):
+    author = create_author(db_session)
+
+    active_book = Book(
+        title="The Hobbit",
+        isbn="9780547928227",
+        publication_year=1937,
+        genre="Fantasy",
+        author_id=author.id,
+        is_archived=False,
+    )
+
+    archived_book = Book(
+        title="The Silmarillion",
+        isbn="9780261102736",
+        publication_year=1977,
+        genre="Fantasy",
+        author_id=author.id,
+        is_archived=True,
+    )
+
+    db_session.add_all([active_book, archived_book])
+    db_session.commit()
+
+    repository = BookRepository(db_session)
+
+    books = repository.get_all()
+
+    assert len(books) == 1
+    assert books[0].title == "The Hobbit"
+
+
+def test_search_excludes_archived_books(db_session):
+    author = create_author(db_session)
+
+    active_book = Book(
+        title="The Hobbit",
+        isbn="9780547928227",
+        publication_year=1937,
+        genre="Fantasy",
+        author_id=author.id,
+        is_archived=False,
+    )
+
+    archived_book = Book(
+        title="The Hobbit: Annotated Edition",
+        isbn="9780000000001",
+        publication_year=2000,
+        genre="Fantasy",
+        author_id=author.id,
+        is_archived=True,
+    )
+
+    db_session.add_all([active_book, archived_book])
+    db_session.commit()
+
+    repository = BookRepository(db_session)
+
+    books = repository.search("Hobbit")
+
+    assert len(books) == 1
+    assert books[0].title == "The Hobbit"
+
+
+def test_get_by_id_includes_archived_books(db_session):
+    author = create_author(db_session)
+
+    book = Book(
+        title="The Silmarillion",
+        isbn="9780261102736",
+        publication_year=1977,
+        genre="Fantasy",
+        author_id=author.id,
+        is_archived=True,
+    )
+
+    db_session.add(book)
+    db_session.commit()
+    db_session.refresh(book)
+
+    repository = BookRepository(db_session)
+
+    result = repository.get_by_id(book.id)
+
+    assert result is not None
+    assert result.is_archived is True

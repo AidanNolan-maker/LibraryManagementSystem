@@ -1,6 +1,8 @@
 import pytest
 
-from app.database.models import Author
+from datetime import date, timedelta
+
+from app.database.models import Author, Book, BookCopy, Loan, Member
 from app.services.book_service import BookService
 
 
@@ -15,6 +17,28 @@ def create_author(db_session):
     db_session.refresh(author)
 
     return author
+
+def create_test_book(db_session):
+    author = Author(
+        first_name="J.R.R.",
+        last_name="Tolkien",
+    )
+    db_session.add(author)
+    db_session.commit()
+    db_session.refresh(author)
+
+    book = Book(
+        title="The Hobbit",
+        isbn="9780547928227",
+        publication_year=1937,
+        genre="Fantasy",
+        author_id=author.id,
+    )
+    db_session.add(book)
+    db_session.commit()
+    db_session.refresh(book)
+
+    return book
 
 
 def test_create_book(db_session):
@@ -158,9 +182,12 @@ def test_delete_book(db_session):
 
     book_id = book.id
 
-    service.delete_book(book)
+    service.archive_book(book)
 
-    assert service.get_book_by_id(book_id) is None
+    archived_book = service.get_book_by_id(book_id)
+
+    assert archived_book is not None
+    assert archived_book.is_archived is True
 
 def test_create_book_rejects_blank_title(db_session):
     author = create_author(db_session)
@@ -267,3 +294,119 @@ def test_update_book_rejects_blank_isbn(db_session):
 
     with pytest.raises(ValueError, match="ISBN cannot be blank"):
         service.update_book(book)
+
+def test_delete_book_with_no_copies_succeeds(db_session):
+    service = BookService(db_session)
+
+    book = create_test_book(db_session)
+
+    service.archive_book(book)
+
+    archived_book = service.get_book_by_id(book.id)
+
+    assert archived_book is not None
+    assert archived_book.is_archived is True
+
+
+def test_delete_book_with_available_copy_succeeds(db_session):
+    book = create_test_book(db_session)
+
+    db_session.add(
+        BookCopy(
+            book_id=book.id,
+            status="AVAILABLE",
+        )
+    )
+    db_session.commit()
+
+    service = BookService(db_session)
+
+    service.archive_book(book)
+
+    archived_book = service.get_book_by_id(book.id)
+
+    assert archived_book is not None
+    assert archived_book.is_archived is True
+
+
+def test_delete_book_with_active_loan_fails(db_session):
+    book = create_test_book(db_session)
+
+    book_copy = BookCopy(
+        book_id=book.id,
+        status="LOANED",
+    )
+
+    member = Member(
+        first_name="Bilbo",
+        last_name="Baggins",
+        email="bilbo@example.com",
+    )
+
+    db_session.add_all([book_copy, member])
+    db_session.commit()
+
+    db_session.refresh(book_copy)
+    db_session.refresh(member)
+
+    loan = Loan(
+        copy_id=book_copy.id,
+        member_id=member.id,
+        checkout_date=date.today(),
+        due_date=date.today() + timedelta(days=14),
+        status="ACTIVE",
+    )
+
+    db_session.add(loan)
+    db_session.commit()
+
+    service = BookService(db_session)
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot archive a book while one or more copies are currently loaned out",
+    ):
+        service.archive_book(book)
+
+    assert service.get_book_by_id(book.id) is not None
+
+def test_delete_book_with_returned_loan_succeeds(db_session):
+    book = create_test_book(db_session)
+
+    book_copy = BookCopy(
+        book_id=book.id,
+        status="AVAILABLE",
+    )
+
+    member = Member(
+        first_name="Bilbo",
+        last_name="Baggins",
+        email="bilbo@example.com",
+    )
+
+    db_session.add_all([book_copy, member])
+    db_session.commit()
+
+    db_session.refresh(book_copy)
+    db_session.refresh(member)
+
+    loan = Loan(
+        copy_id=book_copy.id,
+        member_id=member.id,
+        checkout_date=date.today(),
+        due_date=date.today() + timedelta(days=14),
+        return_date=date.today(),
+        status="RETURNED",
+    )
+
+    db_session.add(loan)
+    db_session.commit()
+
+    service = BookService(db_session)
+
+    service.archive_book(book)
+
+    result = service.get_book_by_id(book.id)
+
+    assert result is not None
+    assert result.is_archived is True

@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Date, ForeignKey, String
+from sqlalchemy import Boolean, Date, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.database import Base
@@ -55,6 +55,12 @@ class Book(Base):
     author_id: Mapped[int] = mapped_column(
         ForeignKey("authors.id"),
         nullable=False,
+    )
+
+    is_archived: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
     )
 
     author: Mapped["Author"] = relationship(

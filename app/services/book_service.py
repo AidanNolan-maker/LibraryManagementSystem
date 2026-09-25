@@ -2,10 +2,14 @@ from sqlalchemy.orm import Session
 
 from app.database.models import Book
 from app.repositories.book_repository import BookRepository
+from app.repositories.book_copy_repository import BookCopyRepository
+from app.repositories.loan_repository import LoanRepository
 
 class BookService:
     def __init__(self, db: Session):
         self.repository = BookRepository(db)
+        self.book_copy_repository = BookCopyRepository(db)
+        self.loan_repository = LoanRepository(db)
 
     def get_all_books(self) -> list[Book]:
         return self.repository.get_all()
@@ -67,5 +71,16 @@ class BookService:
 
         return self.repository.update(book)
 
-    def delete_book(self, book: Book) -> None:
-        self.repository.delete(book)
+    def archive_book(self, book: Book) -> None:
+        copies = self.book_copy_repository.get_by_book_id(book.id)
+
+        for copy in copies:
+            active_loan = self.loan_repository.get_active_by_copy_id(copy.id)
+
+            if active_loan is not None:
+                raise ValueError(
+                    "Cannot archive a book while one or more copies are currently loaned out"
+                )
+
+        book.is_archived = True
+        self.repository.update(book)
