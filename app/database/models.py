@@ -137,6 +137,12 @@ class Member(Base):
         back_populates="member"
     )
 
+    is_archived: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+
 class Loan(Base):
     __tablename__ = "loans"
 

@@ -14,6 +14,7 @@ from app.ui.styles import APPLICATION_STYLE
 
 from app.ui.pages.books_page import BooksPage
 from app.ui.pages.authors_page import AuthorsPage
+from app.ui.pages.members_page import MembersPage
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -128,8 +129,9 @@ class MainWindow(QMainWindow):
 
         self.pages.addWidget(BooksPage())
         self.pages.addWidget(AuthorsPage())
+        self.pages.addWidget(MembersPage())
 
-        for page_name in ["Members", "Loans", "Reports"]:
+        for page_name in ["Loans", "Reports"]:
             page = QWidget()
 
             layout = QVBoxLayout(page)
