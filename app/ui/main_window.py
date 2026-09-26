@@ -15,6 +15,7 @@ from app.ui.styles import APPLICATION_STYLE
 from app.ui.pages.books_page import BooksPage
 from app.ui.pages.authors_page import AuthorsPage
 from app.ui.pages.members_page import MembersPage
+from app.ui.pages.loans_page import LoansPage
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -130,19 +131,18 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(BooksPage())
         self.pages.addWidget(AuthorsPage())
         self.pages.addWidget(MembersPage())
+        self.pages.addWidget(LoansPage())
 
-        for page_name in ["Loans", "Reports"]:
-            page = QWidget()
+        reports_page = QWidget()
+        reports_layout = QVBoxLayout(reports_page)
 
-            layout = QVBoxLayout(page)
+        reports_title = QLabel("Reports")
+        reports_title.setObjectName("page_title")
 
-            title = QLabel(page_name)
-            title.setObjectName("page_title")
+        reports_layout.addWidget(reports_title)
+        reports_layout.addStretch()
 
-            layout.addWidget(title)
-            layout.addStretch()
-
-            self.pages.addWidget(page)
+        self.pages.addWidget(reports_page)
 
     def show_page(self, index):
         self.pages.setCurrentIndex(index)

@@ -3,11 +3,15 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from app.database.models import Loan
+from app.repositories.book_copy_repository import BookCopyRepository
 from app.repositories.loan_repository import LoanRepository
+from app.repositories.member_repository import MemberRepository
 
 class LoanService:
     def __init__(self, db: Session):
         self.repository = LoanRepository(db)
+        self.book_copy_repository = BookCopyRepository(db)
+        self.member_repository = MemberRepository(db)
 
     def get_all_loans(self) -> list[Loan]:
         return self.repository.get_all()
@@ -27,8 +31,27 @@ class LoanService:
             member_id: int,
             loan_period_days: int = 14,
     ) -> Loan:
+        book_copy = self.book_copy_repository.get_by_id(copy_id)
+
+        if book_copy is None:
+            raise ValueError("Book copy not found")
+
+        if book_copy.book.is_archived:
+            raise ValueError("Cannot loan a copy of an archived book")
+
+        member = self.member_repository.get_by_id(member_id)
+
+        if member is None:
+            raise ValueError("Member not found")
+
+        if member.is_archived:
+            raise ValueError("Cannot loan a book to an archived member")
+
         if self.get_active_loan_for_copy(copy_id) is not None:
             raise ValueError("This book copy is already loaned out")
+
+        if book_copy.status != "AVAILABLE":
+            raise ValueError("This book copy is not available")
 
         if loan_period_days <= 0:
             raise ValueError("Loan period must be greater than zero")
@@ -44,7 +67,11 @@ class LoanService:
             status="ACTIVE",
         )
 
-        return self.repository.create(loan)
+        book_copy.status = "LOANED"
+
+        loan = self.repository.create(loan)
+
+        return loan
 
     def return_loan(self, loan: Loan) -> Loan:
         if loan.status != "ACTIVE":
@@ -52,6 +79,13 @@ class LoanService:
 
         loan.status = "RETURNED"
         loan.return_date = date.today()
+
+        book_copy = self.book_copy_repository.get_by_id(loan.copy_id)
+
+        if book_copy is None:
+            raise ValueError("Book copy not found")
+
+        book_copy.status = "AVAILABLE"
 
         return self.repository.update(loan)
 

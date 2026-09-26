@@ -28,7 +28,7 @@ def create_loan_data(db_session):
 
     book_copy = BookCopy(
         book_id=book.id,
-        status="LOANED",
+        status="AVAILABLE",
     )
     member = Member(
         first_name="Bilbo",
@@ -63,6 +63,20 @@ def test_create_loan(db_session):
     assert loan.due_date == date.fromordinal(
         date.today().toordinal() + 14
     )
+
+def test_create_loan_rejects_nonexistent_copy(db_session):
+    _, member = create_loan_data(db_session)
+
+    service = LoanService(db_session)
+
+    with pytest.raises(
+        ValueError,
+        match="Book copy not found",
+    ):
+        service.create_loan(
+            copy_id=999,
+            member_id=member.id,
+        )
 
 
 def test_create_loan_custom_period(db_session):
@@ -166,3 +180,65 @@ def test_return_loan_rejects_non_active_loan(db_session):
         match="This loan is not active",
     ):
         service.return_loan(loan)
+
+def test_create_loan_rejects_archived_member(db_session):
+    book_copy, member = create_loan_data(db_session)
+
+    member.is_archived = True
+    db_session.commit()
+
+    service = LoanService(db_session)
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot loan a book to an archived member",
+    ):
+        service.create_loan(
+            copy_id=book_copy.id,
+            member_id=member.id,
+        )
+
+def test_create_loan_rejects_archived_book(db_session):
+    book_copy, member = create_loan_data(db_session)
+
+    book_copy.book.is_archived = True
+    db_session.commit()
+
+    service = LoanService(db_session)
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot loan a copy of an archived book",
+    ):
+        service.create_loan(
+            copy_id=book_copy.id,
+            member_id=member.id,
+        )
+
+def test_create_loan_marks_copy_as_loaned(db_session):
+    book_copy, member = create_loan_data(db_session)
+
+    service = LoanService(db_session)
+
+    service.create_loan(
+        copy_id=book_copy.id,
+        member_id=member.id,
+    )
+
+    assert book_copy.status == "LOANED"
+
+def test_return_loan_marks_copy_as_available(db_session):
+    book_copy, member = create_loan_data(db_session)
+
+    service = LoanService(db_session)
+
+    loan = service.create_loan(
+        copy_id=book_copy.id,
+        member_id=member.id,
+    )
+
+    assert book_copy.status == "LOANED"
+
+    service.return_loan(loan)
+
+    assert book_copy.status == "AVAILABLE"
