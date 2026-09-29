@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QPushButton,
     QMessageBox,
+    QComboBox,
 )
 
 from app.database.database import SessionLocal
@@ -26,6 +27,21 @@ class LoansPage(QWidget):
         title = QLabel("Loans")
         title.setObjectName("page_title")
 
+        self.overdue_label = QLabel("Overdue Loans: 0")
+
+        self.filter_combo = QComboBox()
+
+        self.filter_combo.addItems(
+            [
+                "All Loans",
+                "Active Loans",
+                "Returned Loans",
+                "Overdue Loans",
+            ]
+        )
+
+        self.filter_combo.currentIndexChanged.connect(self.load_loans)
+
         self.checkout_button = QPushButton("Check Out Book")
         self.checkout_button.clicked.connect(self.open_checkout_dialog)
 
@@ -33,7 +49,7 @@ class LoansPage(QWidget):
         self.return_button.clicked.connect(self.return_selected_loan)
 
         self.loan_table = QTableWidget()
-        self.loan_table.setColumnCount(8)
+        self.loan_table.setColumnCount(9)
         self.loan_table.setHorizontalHeaderLabels(
             [
                 "ID",
@@ -44,6 +60,7 @@ class LoansPage(QWidget):
                 "Due Date",
                 "Return Date",
                 "Status",
+                "Overdue",
             ]
         )
 
@@ -61,6 +78,8 @@ class LoansPage(QWidget):
         )
 
         layout.addWidget(title)
+        layout.addWidget(self.overdue_label)
+        layout.addWidget(self.filter_combo)
         layout.addWidget(self.checkout_button)
         layout.addWidget(self.return_button)
         layout.addWidget(self.loan_table)
@@ -70,7 +89,47 @@ class LoansPage(QWidget):
 
         try:
             service = LoanService(db)
-            loans = service.get_all_loans()
+
+            all_loans = service.get_all_loans()
+
+            overdue_count = sum(
+                1
+                for loan in all_loans
+                if service.is_loan_overdue(loan)
+            )
+
+            self.overdue_label.setText(
+                f"Overdue Loans: {overdue_count}"
+            )
+
+            filter_name = self.filter_combo.currentText()
+
+            if filter_name == "Active Loans":
+                loans = [
+                    loan
+                    for loan in all_loans
+                    if loan.status == "ACTIVE"
+                ]
+
+            elif filter_name == "Returned Loans":
+                loans = [
+                    loan
+                    for loan in all_loans
+                    if loan.status == "RETURNED"
+                ]
+
+            elif filter_name == "Overdue Loans":
+                loans = [
+                    loan
+                    for loan in all_loans
+                    if service.is_loan_overdue(loan)
+                ]
+
+            elif filter_name == "All Loans":
+                loans = all_loans
+
+            else:
+                loans = all_loans
 
             self.loan_table.setRowCount(len(loans))
 
@@ -124,6 +183,13 @@ class LoansPage(QWidget):
                     row,
                     7,
                     QTableWidgetItem(loan.status),
+                )
+                self.loan_table.setItem(
+                    row,
+                    8,
+                    QTableWidgetItem(
+                        "Yes" if service.is_loan_overdue(loan) else ""
+                    ),
                 )
 
         finally:

@@ -91,3 +91,16 @@ class LoanService:
 
     def delete_loan(self, loan: Loan) -> None:
         self.repository.delete(loan)
+
+    def is_loan_overdue(self, loan: Loan) -> bool:
+        return (
+            loan.status == "ACTIVE"
+            and loan.due_date < date.today()
+        )
+
+    def get_overdue_loans(self) -> list[Loan]:
+        return [
+            loan
+            for loan in self.get_all_loans()
+            if self.is_loan_overdue(loan)
+        ]

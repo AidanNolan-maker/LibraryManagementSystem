@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -242,3 +242,61 @@ def test_return_loan_marks_copy_as_available(db_session):
     service.return_loan(loan)
 
     assert book_copy.status == "AVAILABLE"
+
+def test_is_loan_overdue_for_past_due_active_loan(db_session):
+    book_copy, member = create_loan_data(db_session)
+
+    service = LoanService(db_session)
+
+    loan = service.create_loan(
+        copy_id=book_copy.id,
+        member_id=member.id,
+    )
+
+    loan.due_date = date.today() - timedelta(days=1)
+
+    assert service.is_loan_overdue(loan)
+
+def test_is_loan_not_overdue_when_due_today(db_session):
+    book_copy, member = create_loan_data(db_session)
+
+    service = LoanService(db_session)
+
+    loan = service.create_loan(
+        copy_id=book_copy.id,
+        member_id=member.id,
+    )
+
+    loan.due_date = date.today()
+
+    assert not service.is_loan_overdue(loan)
+
+def test_is_returned_loan_not_overdue(db_session):
+    book_copy, member = create_loan_data(db_session)
+
+    service = LoanService(db_session)
+
+    loan = service.create_loan(
+        copy_id=book_copy.id,
+        member_id=member.id,
+    )
+
+    loan.due_date = date.today() - timedelta(days=1)
+
+    service.return_loan(loan)
+
+    assert not service.is_loan_overdue(loan)
+
+def test_get_overdue_loans(db_session):
+    book_copy, member = create_loan_data(db_session)
+
+    service = LoanService(db_session)
+
+    overdue_loan = service.create_loan(
+        copy_id=book_copy.id,
+        member_id=member.id,
+    )
+
+    overdue_loan.due_date = date.today() - timedelta(days=1)
+
+    assert service.get_overdue_loans() == [overdue_loan]
