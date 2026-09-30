@@ -84,3 +84,6 @@ class BookService:
 
         book.is_archived = True
         self.repository.update(book)
+
+    def get_copy_counts_for_books(self) -> dict[int, dict[str, int]]:
+        return self.repository.get_copy_counts_for_books()

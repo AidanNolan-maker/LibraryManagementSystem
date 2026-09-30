@@ -1,4 +1,4 @@
-from app.database.models import Author, Book
+from app.database.models import Author, Book, BookCopy
 from app.repositories.book_repository import BookRepository
 
 def create_author(db_session):
@@ -225,3 +225,101 @@ def test_get_by_id_includes_archived_books(db_session):
 
     assert result is not None
     assert result.is_archived is True
+
+def test_Search_books_by_isbn(db_session):
+    author = create_author(db_session)
+    repository = BookRepository(db_session)
+
+    create_book(
+        db_session,
+        author,
+        title="The Hobbit",
+        isbn="9780547928227",
+    )
+
+    create_book(
+        db_session,
+        author,
+        title="The Lord of the Rings",
+        isbn="9780618640157",
+    )
+
+    results = repository.search("9780547928227")
+
+    assert len(results) == 1
+    assert results[0].title == "The Hobbit"
+
+def test_search_books_by_partial_isbn(db_session):
+    author = create_author(db_session)
+    repository = BookRepository(db_session)
+
+    create_book(
+        db_session,
+        author,
+        title="The Hobbit",
+        isbn="9780547928227",
+    )
+
+    create_book(
+        db_session,
+        author,
+        title="The Lord of the Rings",
+        isbn="9780618640157",
+    )
+
+    results = repository.search("054792")
+
+    assert len(results) == 1
+    assert results[0].title == "The Hobbit"
+
+def test_get_copy_counts_for_books(db_session):
+    author = create_author(db_session)
+    repository = BookRepository(db_session)
+
+    book_with_copies = create_book(
+        db_session,
+        author,
+        title="The Hobbit",
+        isbn="9780547928227",
+    )
+
+    book_without_copies = create_book(
+        db_session,
+        author,
+        title="The Silmarillion",
+        isbn="9780261102736",
+    )
+
+    available_copy_1 = BookCopy(
+        book_id=book_with_copies.id,
+        status="AVAILABLE",
+    )
+
+    available_copy_2 = BookCopy(
+        book_id=book_with_copies.id,
+        status="AVAILABLE",
+    )
+
+    loaned_copy = BookCopy(
+        book_id=book_with_copies.id,
+        status="LOANED",
+    )
+
+    db_session.add_all(
+        [
+            available_copy_1,
+            available_copy_2,
+            loaned_copy,
+        ]
+    )
+    db_session.commit()
+
+    counts = repository.get_copy_counts_for_books()
+
+    assert counts[book_with_copies.id]["total"] == 3
+    assert counts[book_with_copies.id]["available"] == 2
+    assert counts[book_with_copies.id]["loaned"] == 1
+
+    assert counts[book_without_copies.id]["total"] == 0
+    assert counts[book_without_copies.id]["available"] == 0
+    assert counts[book_without_copies.id]["loaned"] == 0

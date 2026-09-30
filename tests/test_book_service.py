@@ -410,3 +410,52 @@ def test_delete_book_with_returned_loan_succeeds(db_session):
 
     assert result is not None
     assert result.is_archived is True
+
+def test_get_copy_counts_for_books(db_session):
+    service = BookService(db_session)
+
+    author = Author(
+        first_name="J.R.R.",
+        last_name="Tolkien",
+    )
+    db_session.add(author)
+    db_session.commit()
+    db_session.refresh(author)
+
+    book_with_copies = service.create_book(
+        title="The Hobbit",
+        isbn="9780261102217",
+        publication_year=1937,
+        genre="Fantasy",
+        author_id=author.id,
+    )
+
+    book_without_copies = service.create_book(
+        title="The Silmarillion",
+        isbn="9780261102422",
+        publication_year=1977,
+        genre="Fantasy",
+        author_id=author.id,
+    )
+
+    available_copy = BookCopy(
+        book_id=book_with_copies.id,
+        status="AVAILABLE",
+    )
+    loaned_copy = BookCopy(
+        book_id=book_with_copies.id,
+        status="LOANED",
+    )
+
+    db_session.add_all([available_copy, loaned_copy])
+    db_session.commit()
+
+    counts = service.get_copy_counts_for_books()
+
+    assert counts[book_with_copies.id]["total"] == 2
+    assert counts[book_with_copies.id]["available"] == 1
+    assert counts[book_with_copies.id]["loaned"] == 1
+
+    assert counts[book_without_copies.id]["total"] == 0
+    assert counts[book_without_copies.id]["available"] == 0
+    assert counts[book_without_copies.id]["loaned"] == 0

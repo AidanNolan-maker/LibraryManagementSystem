@@ -52,14 +52,17 @@ class BooksPage(QWidget):
         self.manage_copies_button.clicked.connect(self.open_manage_copies_dialog)
 
         self.book_table = QTableWidget()
-        self.book_table.setColumnCount(5)
+        self.book_table.setColumnCount(8)
         self.book_table.setHorizontalHeaderLabels(
             [
                 "ID",
                 "Title",
                 "ISBN",
                 "Publication Year",
-                "Genre"
+                "Genre",
+                "Copies",
+                "Available",
+                "Loaned",
             ]
         )
 
@@ -95,7 +98,8 @@ class BooksPage(QWidget):
         try:
             service = BookService(db)
             books = service.get_all_books()
-            self.populate_table(books)
+            copy_counts = service.get_copy_counts_for_books()
+            self.populate_table(books, copy_counts)
 
         finally:
             db.close()
@@ -108,18 +112,29 @@ class BooksPage(QWidget):
 
             if search_term.strip():
                 books = service.search_books(search_term.strip())
+
             else:
                 books = service.get_all_books()
 
-            self.populate_table(books)
+            copy_counts = service.get_copy_counts_for_books()
+            self.populate_table(books, copy_counts)
 
         finally:
             db.close()
 
-    def populate_table(self, books):
+    def populate_table(self, books, copy_counts):
         self.book_table.setRowCount(len(books))
 
         for row, book in enumerate(books):
+            counts = copy_counts.get(
+                book.id,
+                {
+                    "total": 0,
+                    "available": 0,
+                    "loaned": 0,
+                }
+            )
+
             self.book_table.setItem(
                 row,
                 0,
@@ -156,6 +171,24 @@ class BooksPage(QWidget):
                 row,
                 4,
                 QTableWidgetItem(genre),
+            )
+
+            self.book_table.setItem(
+                row,
+                5,
+                QTableWidgetItem(str(counts["total"])),
+            )
+
+            self.book_table.setItem(
+                row,
+                6,
+                QTableWidgetItem(str(counts["available"])),
+            )
+
+            self.book_table.setItem(
+                row,
+                7,
+                QTableWidgetItem(str(counts["loaned"])),
             )
 
     def open_add_book_dialog(self):
