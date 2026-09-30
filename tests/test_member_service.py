@@ -351,3 +351,18 @@ def test_archive_member_allows_returned_loans(db_session):
     service.archive_member(member)
 
     assert member.is_archived is True
+
+def test_search_members(db_session):
+    service = MemberService(db_session)
+
+    member = service.create_member(
+        first_name="John",
+        last_name="Smith",
+        email="john@example.com",
+        phone="555-123-4567",
+    )
+
+    results = service.search_members("Smith")
+
+    assert len(results) == 1
+    assert results[0].id == member.id

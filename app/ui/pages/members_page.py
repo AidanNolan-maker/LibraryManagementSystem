@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QWidget,
+    QLineEdit,
 )
 
 from app.database.database import SessionLocal
@@ -44,6 +45,12 @@ class MembersPage(QWidget):
         button_layout.addWidget(self.archive_member_button)
         button_layout.addStretch()
 
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText(
+            "Search members by name, email, or phone..."
+        )
+        self.search_input.textChanged.connect(self.search_members)
+
         self.member_table = QTableWidget()
         self.member_table.setColumnCount(6)
         self.member_table.setHorizontalHeaderLabels(
@@ -66,20 +73,28 @@ class MembersPage(QWidget):
         self.member_table.setSelectionMode(
             QTableWidget.SelectionMode.SingleSelection
         )
-        self.member_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
-        )
+
+        header = self.member_table.horizontalHeader()
+
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
 
         layout.addWidget(title)
         layout.addLayout(button_layout)
+        layout.addWidget(self.search_input)
         layout.addWidget(self.member_table)
 
-    def load_members(self):
+    def load_members(self, search_term=""):
         db = SessionLocal()
 
         try:
             service = MemberService(db)
-            members = service.get_all_members()
+
+            if search_term.strip():
+                members = service.search_members(search_term.strip())
+
+            else:
+                members = service.get_all_members()
 
             self.member_table.setRowCount(len(members))
 
@@ -113,12 +128,15 @@ class MembersPage(QWidget):
                     row,
                     5,
                     QTableWidgetItem(
-                        member.membership_date.strftime("%Y-%n-%d")
+                        member.membership_date.strftime("%Y-%m-%d")
                     ),
                 )
 
         finally:
             db.close()
+
+    def search_members(self):
+        self.load_members(self.search_input.text())
 
     def open_add_member_dialog(self):
         dialog = AddMemberDialog(self)

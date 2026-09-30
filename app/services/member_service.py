@@ -119,3 +119,6 @@ class MemberService:
 
         member.is_archived = True
         self.repository.update(member)
+
+    def search_members(self, search_term: str) -> list[Member]:
+        return self.repository.search(search_term)

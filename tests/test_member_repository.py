@@ -164,3 +164,152 @@ def test_get_all_members_excludes_archived_members(db_session):
 
     assert len(members) == 1
     assert members[0].email == "john@example.com"
+
+def test_search_by_first_name(db_session):
+    repository = MemberRepository(db_session)
+
+    john = Member(
+        first_name="John",
+        last_name="Smith",
+        email="john@example.com",
+        phone="555-123-4567",
+    )
+    jane = Member(
+        first_name="Jane",
+        last_name="Doe",
+        email="jane@example.com",
+        phone="555-987-6543",
+    )
+
+    repository.create(john)
+    repository.create(jane)
+
+    results = repository.search("John")
+
+    assert len(results) == 1
+    assert results[0].first_name == "John"
+
+
+def test_search_by_last_name(db_session):
+    repository = MemberRepository(db_session)
+
+    john = Member(
+        first_name="John",
+        last_name="Smith",
+        email="john@example.com",
+        phone="555-123-4567",
+    )
+    jane = Member(
+        first_name="Jane",
+        last_name="Doe",
+        email="jane@example.com",
+        phone="555-987-6543",
+    )
+
+    repository.create(john)
+    repository.create(jane)
+
+    results = repository.search("Smith")
+
+    assert len(results) == 1
+    assert results[0].last_name == "Smith"
+
+
+def test_search_by_email(db_session):
+    repository = MemberRepository(db_session)
+
+    member = Member(
+        first_name="John",
+        last_name="Smith",
+        email="john.smith@example.com",
+        phone="555-123-4567",
+    )
+
+    repository.create(member)
+
+    results = repository.search("john.smith@example.com")
+
+    assert len(results) == 1
+    assert results[0].email == "john.smith@example.com"
+
+
+def test_search_by_phone(db_session):
+    repository = MemberRepository(db_session)
+
+    member = Member(
+        first_name="John",
+        last_name="Smith",
+        email="john@example.com",
+        phone="555-123-4567",
+    )
+
+    repository.create(member)
+
+    results = repository.search("555-123")
+
+    assert len(results) == 1
+    assert results[0].phone == "555-123-4567"
+
+
+def test_search_is_case_insensitive(db_session):
+    repository = MemberRepository(db_session)
+
+    member = Member(
+        first_name="John",
+        last_name="Smith",
+        email="john@example.com",
+        phone="555-123-4567",
+    )
+
+    repository.create(member)
+
+    results = repository.search("JOHN")
+
+    assert len(results) == 1
+    assert results[0].first_name == "John"
+
+
+def test_search_returns_partial_matches(db_session):
+    repository = MemberRepository(db_session)
+
+    member = Member(
+        first_name="Jonathan",
+        last_name="Smith",
+        email="jonathan@example.com",
+        phone="555-123-4567",
+    )
+
+    repository.create(member)
+
+    results = repository.search("Jon")
+
+    assert len(results) == 1
+    assert results[0].first_name == "Jonathan"
+
+
+def test_search_excludes_archived_members(db_session):
+    repository = MemberRepository(db_session)
+
+    active_member = Member(
+        first_name="John",
+        last_name="Smith",
+        email="john@example.com",
+        phone="555-123-4567",
+        is_archived=False,
+    )
+
+    archived_member = Member(
+        first_name="Johnny",
+        last_name="Smith",
+        email="johnny@example.com",
+        phone="555-987-6543",
+        is_archived=True,
+    )
+
+    repository.create(active_member)
+    repository.create(archived_member)
+
+    results = repository.search("John")
+
+    assert len(results) == 1
+    assert results[0].email == "john@example.com"

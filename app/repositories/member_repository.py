@@ -36,3 +36,18 @@ class MemberRepository:
     def delete(self, member: Member) -> None:
         self.db.delete(member)
         self.db.commit()
+
+    def search(self, search_term: str):
+        search_pattern = f"%{search_term}%"
+
+        statement = select(Member).where(
+            Member.is_archived.is_(False),
+            (
+                Member.first_name.ilike(search_pattern)
+                | Member.last_name.ilike(search_pattern)
+                | Member.email.ilike(search_pattern)
+                | Member.phone.ilike(search_pattern)
+            ),
+        ).order_by(Member.last_name, Member.first_name)
+
+        return list(self.db.scalars(statement).all())
